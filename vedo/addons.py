@@ -1253,6 +1253,7 @@ def buildAxes(obj=None,
 
     if useGlobal:
         vbb, ss, min_bns, max_bns = computeVisibleBounds()
+        vbb = list(vbb) # so that we can modify it
     else:
         if obj:
             vbb = list(obj.GetBounds())

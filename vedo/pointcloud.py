@@ -1987,24 +1987,41 @@ class Points(vtk.vtkFollower, BaseActor):
         self.transform = lmt
         return self
 
-
-    def applyTransform(self, transformation):
+    def applyTransform(self, transformation, reset=False):
         """
         Apply a linear or non-linear transformation to the mesh polygonal data.
 
-        :param transformation: the``vtkTransform`` or ``vtkMatrix4x4`` objects.
+        :param transformation: a ``vtkTransform``, ``vtkMatrix4x4``
+            or a 4x4 numpy array object.
+
+        :param bool reset: if True reset the current transformation matrix
+            to identity after having moved the object, otherwise the internal
+            matrix will stay the same (to only affect visualization).
+            It the input transformation has no internal defined matrix (ie. non linear)
+            then reset will be assumed as True.
         """
         if isinstance(transformation, vtk.vtkMatrix4x4):
             tr = vtk.vtkTransform()
             tr.SetMatrix(transformation)
             transformation = tr
-        tf = vtk.vtkTransformPolyDataFilter()
-        tf.SetTransform(transformation)
-        tf.SetInputData(self.polydata())
-        tf.Update()
-        self.PokeMatrix(vtk.vtkMatrix4x4())  # identity
-        return self._update(tf.GetOutput())
-
+        elif utils.isSequence(transformation):
+            M = vtk.vtkMatrix4x4()
+            for i in [0,1,2,3]:
+                for j in [0,1,2,3]:
+                    M.SetElement(i, j, transformation[i][j])
+            tr = vtk.vtkTransform()
+            tr.SetMatrix(M)
+            transformation = tr
+        if reset or not hasattr(transformation, 'GetMatrix'):
+            tf = vtk.vtkTransformPolyDataFilter()
+            tf.SetTransform(transformation)
+            tf.SetInputData(self.polydata())
+            tf.Update()
+            self.PokeMatrix(vtk.vtkMatrix4x4())  # reset to identity
+            return self._update(tf.GetOutput())
+        else:
+            self.SetUserMatrix(transformation.GetMatrix())
+            return self
 
     def normalize(self):
         """
